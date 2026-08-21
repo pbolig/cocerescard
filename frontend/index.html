@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Vehículos seleccionados en Rosario y alrededores.">
+  <title>Coceres Card | Vehículos con precio claro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="."><span class="brand-mark">CC</span><span>Coceres<span class="brand-muted">Card</span></span></a>
+    <nav><a href="#catalogo">Catálogo</a><a href="#como-funciona">Cómo funciona</a><a class="nav-cta" href="mailto:hola@cocerescard.com">Vender mi auto <span>↗</span></a></nav>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-copy reveal"><p class="eyebrow">Rosario · Santa Fe · Argentina</p><h1>Encontrá tu próximo <em>movimiento.</em></h1><p class="hero-text">Vehículos inspeccionados, precios transparentes y referencias reales para comprar con criterio.</p><a class="button button-dark" href="#catalogo">Ver vehículos <span>↓</span></a></div>
+      <div class="hero-stat reveal"><strong>24</strong><span>unidades<br>seleccionadas</span><small>Actualizado hoy · 09:40</small></div>
+      <div class="hero-art"><div class="sun"></div><div class="road"></div><div class="hero-car">↗</div><span class="art-label">CC / 01</span></div>
+    </section>
+    <section id="catalogo" class="catalogue">
+      <div class="section-head"><div><p class="eyebrow">Selección actual</p><h2>Autos que merecen<br>una mirada.</h2></div><p class="section-note">Cada ficha incluye comparativas de<br>Mercado Libre, Rosario Garage y<br>referencias oficiales.</p></div>
+      <div class="toolbar"><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Buscar marca, modelo o ubicación"></label><div class="filters"><button class="filter active" data-status="available">Disponibles</button><button class="filter" data-status="all">Todos</button></div></div>
+      <div id="status" class="status" aria-live="polite">Cargando catálogo...</div><div id="vehicle-grid" class="vehicle-grid"></div>
+    </section>
+    <section id="como-funciona" class="trust"><p class="eyebrow">La diferencia Coceres</p><div class="trust-grid"><h2>Comprar bien también<br>es saber <em>por qué.</em></h2><div class="trust-items"><article><span>01</span><h3>Precio con contexto</h3><p>Ves el valor publicado junto al promedio de mercado, sin números sueltos.</p></article><article><span>02</span><h3>Curaduría local</h3><p>Conocemos los caminos, los talleres y los detalles que importan en la zona.</p></article><article><span>03</span><h3>Trato directo</h3><p>Una conversación clara, desde la primera pregunta hasta la transferencia.</p></article></div></div></section>
+  </main>
+  <footer><span>© 2026 Coceres Card</span><span>Hecho para moverse mejor.</span></footer>
+  <script src="config.js"></script><script src="app.js"></script>
+</body>
+</html>
