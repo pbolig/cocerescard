@@ -21,4 +21,14 @@ Abrir `frontend/index.html` o servir `frontend` con un servidor estático. La ap
 3. Cada push a `main` sincroniza SQLite mediante `sync.yml`.
 4. `update_prices.yml` actualiza referencias diariamente. Revisar términos, límites y permisos de cada fuente antes de activar scraping.
 
+## Fotos de vehículos
+
+El esquema crea el bucket público `vehicle-images`. Para subir fotos propias, crear `backend/.env` (no subirlo a Git) con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`, preparar una carpeta con fotos cuyo nombre sea el ID del vehículo (`1.jpg`, `2.jpg`, etc.) y ejecutar:
+
+```powershell
+backend/.venv/Scripts/python.exe backend/upload_vehicle_images.py fotos
+```
+
+El script sube cada archivo a Storage y actualiza `image_url` en SQLite. Después ejecutar `sync_to_supabase.py` para replicar esas URLs en Supabase.
+
 El service role key solo vive en GitHub Actions; nunca debe llegar al frontend.

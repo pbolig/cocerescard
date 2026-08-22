@@ -1,5 +1,4 @@
 window.APP_CONFIG = {
-  // Dejar vacío en local. En GitHub Pages usar la URL pública de Supabase.
-  supabaseUrl: '',
-  supabaseAnonKey: ''
+  supabaseUrl: 'https://qgyxjqmbqwufcycgpcmk.supabase.co',
+  supabaseAnonKey: 'sb_publishable_ibBW0Jmd9dZS_xydDCzfcQ_ZWu7y2ur'
 };
