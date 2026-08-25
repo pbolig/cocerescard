@@ -1,7 +1,9 @@
 """Punto de entrada para el cron de referencias. Requiere configurar fuentes y términos de uso."""
 from pathlib import Path
+import os
 import sqlite3
 from scrapers.mercadolibre import search_listings
+from supabase import create_client
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT / 'db' / 'local.sqlite3'
@@ -27,3 +29,14 @@ for vehicle_id, query in db.execute('SELECT id, title FROM vehicles'):
         db.execute('INSERT INTO price_references (vehicle_id, source, source_label, price_ars, url) VALUES (?, ?, ?, ?, ?)', (vehicle_id, listing['source'], 'Mercado Libre', listing['price_ars'], listing['url']))
 db.commit()
 db.close()
+
+
+if os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_SERVICE_ROLE_KEY'):
+    client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
+    vehicles = client.table('vehicles').select('id, title').execute().data or []
+    for vehicle in vehicles:
+        listings = search_listings(vehicle['title'], limit=3)
+        client.table('price_references').delete().eq('vehicle_id', vehicle['id']).eq('source', 'mercadolibre').execute()
+        references = [{'vehicle_id': vehicle['id'], 'source': listing['source'], 'source_label': 'Mercado Libre', 'price_ars': listing['price_ars'], 'url': listing['url']} for listing in listings]
+        if references:
+            client.table('price_references').insert(references).execute()

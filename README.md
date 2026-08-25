@@ -20,6 +20,7 @@ Abrir `frontend/index.html` o servir `frontend` con un servidor estático. La ap
 2. Crear secretos de repositorio `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
 3. Cada push a `main` sincroniza SQLite mediante `sync.yml`.
 4. `update_prices.yml` actualiza referencias diariamente. Revisar términos, límites y permisos de cada fuente antes de activar scraping.
+5. Para activar registro, recuperación de contraseña y publicación de vehículos, volver a ejecutar `supabase_schema.sql` en el SQL Editor. En Authentication → URL Configuration, agregar la URL de GitHub Pages como Site URL y Redirect URL.
 
 ## Fotos de vehículos
 
