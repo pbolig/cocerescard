@@ -15,6 +15,9 @@ for source, url in DOLLAR_SOURCES.items():
         print(f'No se pudo consultar {source}: {error}')
 
 if not rates:
+    if OUTPUT_PATH.exists():
+        print('No se pudo actualizar ninguna fuente; se conserva el JSON anterior')
+        raise SystemExit(0)
     raise SystemExit('No se pudo consultar ninguna fuente de dólar')
 
 OUTPUT_PATH.write_text(json.dumps({
