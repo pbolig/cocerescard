@@ -1,0 +1,15 @@
+{
+  "updated_at": "2026-08-25T11:51+00:00",
+  "rates": [
+    {
+      "source": "bna",
+      "buy": 1480.0,
+      "sell": 1530.0
+    },
+    {
+      "source": "dolarhoy",
+      "buy": 1480.0,
+      "sell": 1530.0
+    }
+  ]
+}
