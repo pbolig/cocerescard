@@ -3,6 +3,7 @@ const config = window.APP_CONFIG || {};
 const grid = document.querySelector('#vehicle-grid');
 const status = document.querySelector('#status');
 const search = document.querySelector('#search');
+const dollarRates = document.querySelector('#dollar-rates');
 let currentStatus = 'available';
 let allVehicles = [];
 
@@ -23,6 +24,19 @@ async function getVehicles() {
   return response.json();
 }
 
+const dollarMoney = value => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
+
+async function loadDollarRates() {
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/dolar');
+    if (!response.ok) throw new Error('Cotizaciones no disponibles');
+    const data = await response.json();
+    dollarRates.innerHTML = data.rates.map(rate => `<span title="${rate.source === 'bna' ? 'Banco Nación' : 'DolarHoy'}"><b>${rate.source === 'bna' ? 'BNA' : 'DH'}</b> ${dollarMoney(rate.buy)} / ${dollarMoney(rate.sell)}</span>`).join('');
+  } catch (error) {
+    dollarRates.innerHTML = '<span class="dollar-unavailable">No disponible</span>';
+  }
+}
+
 function render(vehicles) {
   status.textContent = `${vehicles.length} vehículos encontrados`;
   grid.innerHTML = vehicles.map(vehicle => {
@@ -36,3 +50,5 @@ async function load() { try { allVehicles = await getVehicles(); render(allVehic
 search.addEventListener('input', load);
 document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => { document.querySelector('.filter.active').classList.remove('active'); button.classList.add('active'); currentStatus = button.dataset.status; load(); }));
 load();
+loadDollarRates();
+setInterval(loadDollarRates, 15 * 60 * 1000);

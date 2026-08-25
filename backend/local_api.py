@@ -1,5 +1,9 @@
 from pathlib import Path
 import sqlite3
+import re
+from datetime import datetime
+import requests
+from bs4 import BeautifulSoup
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
@@ -10,6 +14,10 @@ SEED_PATH = ROOT / 'db' / 'seed.sql'
 app = Flask(__name__)
 CORS(app)
 FRONTEND_PATH = ROOT / 'frontend'
+DOLLAR_SOURCES = {
+    'bna': 'https://www.bna.com.ar/Personas',
+    'dolarhoy': 'https://dolarhoy.com/cotizacion-dolar-oficial'
+}
 
 
 def connection():
@@ -32,6 +40,43 @@ def vehicle_payload(row, references):
     vehicle = dict(row)
     vehicle['price_references'] = [dict(item) for item in references]
     return vehicle
+
+
+def parse_price(value):
+    match = re.search(r'\d+(?:[.\s]\d{3})*(?:,\d{1,2})?', value)
+    if not match:
+        return None
+    return float(match.group().replace('.', '').replace(' ', '').replace(',', '.'))
+
+
+def scrape_dollar(source, url):
+    response = requests.get(url, headers={'User-Agent': 'CoceresCard/1.0'}, timeout=10)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, 'html.parser')
+    text = soup.get_text(' ', strip=True)
+    if source == 'bna':
+        marker = re.search(r'Dolar\s+U\.S\.A\s+([\d.,]+)\s+([\d.,]+)', text, re.IGNORECASE)
+    else:
+        marker = re.search(r'D[oó]lar\s+Oficial\s+Compra\s+\$?\s*([\d.,]+)\s+Venta\s+\$?\s*([\d.,]+)', text, re.IGNORECASE)
+    if not marker:
+        raise ValueError(f'No se encontraron valores en {source}')
+    prices = [parse_price(value) for value in marker.groups()]
+    if len(prices) < 2:
+        raise ValueError(f'No se encontraron valores en {source}')
+    return {'buy': prices[0], 'sell': prices[1]}
+
+
+@app.get('/api/dolar')
+def dollar_rates():
+    rates = []
+    for source, url in DOLLAR_SOURCES.items():
+        try:
+            rates.append({'source': source, **scrape_dollar(source, url)})
+        except (requests.RequestException, ValueError) as error:
+            app.logger.warning('No se pudo consultar %s: %s', source, error)
+    if not rates:
+        return jsonify({'error': 'No se pudieron consultar las cotizaciones'}), 503
+    return jsonify({'updated_at': datetime.now().isoformat(timespec='minutes'), 'rates': rates})
 
 
 @app.get('/')
