@@ -28,10 +28,12 @@ const dollarMoney = value => new Intl.NumberFormat('es-AR', { style: 'currency',
 
 async function loadDollarRates() {
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/dolar');
+    const isLocal = !window.location.hostname || ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+    const response = await fetch(isLocal ? 'http://127.0.0.1:5000/api/dolar' : config.dollarApiUrl);
     if (!response.ok) throw new Error('Cotizaciones no disponibles');
     const data = await response.json();
-    dollarRates.innerHTML = data.rates.map(rate => `<span title="${rate.source === 'bna' ? 'Banco Nación' : 'DolarHoy'}"><b>${rate.source === 'bna' ? 'BNA' : 'DH'}</b> ${dollarMoney(rate.buy)} / ${dollarMoney(rate.sell)}</span>`).join('');
+    const rates = isLocal ? data.rates : [{ source: 'official', buy: data.compra, sell: data.venta }];
+    dollarRates.innerHTML = rates.map(rate => `<span title="${rate.source === 'bna' ? 'Banco Nación' : rate.source === 'dolarhoy' ? 'DolarHoy' : 'Referencia oficial'}"><b>${rate.source === 'bna' ? 'BNA' : rate.source === 'dolarhoy' ? 'DH' : 'Oficial'}</b> ${dollarMoney(rate.buy)} / ${dollarMoney(rate.sell)}</span>`).join('');
   } catch (error) {
     dollarRates.innerHTML = '<span class="dollar-unavailable">No disponible</span>';
   }
