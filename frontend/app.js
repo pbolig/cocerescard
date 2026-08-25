@@ -29,7 +29,7 @@ const dollarMoney = value => new Intl.NumberFormat('es-AR', { style: 'currency',
 async function loadDollarRates() {
   try {
     const isLocal = !window.location.hostname || ['127.0.0.1', 'localhost'].includes(window.location.hostname);
-    const response = await fetch(isLocal ? 'http://127.0.0.1:5000/api/dolar' : 'dollar-rates.json');
+    const response = await fetch(isLocal ? 'http://127.0.0.1:5000/api/dolar' : 'dollar-rates.json?v=20260825');
     if (!response.ok) throw new Error('Cotizaciones no disponibles');
     const data = await response.json();
     const rates = data.rates;
