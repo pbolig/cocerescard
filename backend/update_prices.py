@@ -25,7 +25,8 @@ def init_db():
 init_db()
 db = sqlite3.connect(DB_PATH)
 local_matches = 0
-for vehicle_id, query in db.execute('SELECT id, title FROM vehicles'):
+for vehicle_id, title, brand, model, year in db.execute('SELECT id, title, brand, model, year FROM vehicles'):
+    query = f'{brand} {model} {year}'
     try:
         listings = search_listings(query, limit=3)
     except requests.RequestException as error:
@@ -42,13 +43,14 @@ print(f'Referencias locales obtenidas desde Mercado Libre: {local_matches}')
 
 if os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_SERVICE_ROLE_KEY'):
     client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
-    vehicles = client.table('vehicles').select('id, title').execute().data or []
+    vehicles = client.table('vehicles').select('id, title, brand, model, year').execute().data or []
     remote_matches = 0
     for vehicle in vehicles:
+        query = f"{vehicle['brand']} {vehicle['model']} {vehicle['year']}"
         try:
-            listings = search_listings(vehicle['title'], limit=3)
+            listings = search_listings(query, limit=3)
         except requests.RequestException as error:
-            print(f"No se pudo consultar Mercado Libre para {vehicle['title']}: {error}")
+            print(f"No se pudo consultar Mercado Libre para {query}: {error}")
             continue
         remote_matches += len(listings)
         client.table('price_references').delete().eq('vehicle_id', vehicle['id']).eq('source', 'mercadolibre').execute()
