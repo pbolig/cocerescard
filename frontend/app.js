@@ -164,7 +164,7 @@ async function refreshReferences(vehicleId, button, output) {
     if (!response.ok) throw new Error(data.error || 'No se pudo actualizar');
     output.innerHTML = data.results.map(result => {
       const label = result.source === 'mercadolibre' ? 'Mercado Libre' : result.source === 'rosario_garage' ? 'Rosario Garage' : 'Oficial';
-      const detail = result.status === 'ok' ? `OK${result.count ? ` · ${result.count} avisos` : ' · Sin resultados'}` : result.status === 'unavailable' ? 'No configurado' : 'Error';
+      const detail = result.status === 'ok' ? `OK · ${result.count} avisos` : result.status === 'no_results' ? 'Sin resultados' : result.status === 'unavailable' ? 'No configurado' : 'Error';
       const copy = result.status === 'error' ? `<button class="copy-error" type="button" data-error="${encodeURIComponent(result.message)}">Copiar error</button>` : '';
       return `<span class="reference-status ${result.status}"><i class="dot ${result.source}"></i>${label}<b>${detail}</b>${copy}</span>`;
     }).join('');
