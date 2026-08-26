@@ -169,7 +169,6 @@ async function refreshReferences(vehicleId, button, output) {
       const copy = result.status === 'error' ? `<button class="copy-error" type="button" data-error="${encodeURIComponent(result.message)}">Copiar error</button>` : '';
       return `<span class="reference-status ${result.status}"><i class="dot ${result.source}"></i>${label}<b>${detail}</b>${copy}</span>`;
     }).join('');
-    await load();
   } catch (error) {
     output.innerHTML = `<span class="reference-status error">Error: ${error.message} <button class="copy-error" type="button" data-error="${encodeURIComponent(error.message)}">Copiar error</button></span>`;
   } finally {

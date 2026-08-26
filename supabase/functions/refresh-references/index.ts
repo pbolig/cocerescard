@@ -46,9 +46,9 @@ async function rosarioGarage(query: string): Promise<Listing[]> {
   const response = await fetch(`https://www.rosariogarage.com/${isMoto ? "Motos" : "Autos"}`, { headers: { "User-Agent": "Mozilla/5.0" } });
   if (!response.ok) throw new Error(`Rosario Garage: HTTP ${response.status}`);
   const html = await response.text();
-  const cards = [...html.matchAll(/box_aviso(?:_premium)?_base[\s\S]{0,12000}?list_type_anuncio[^>]*>[\s\S]*?<span[^>]*>([^<]+)<\/span>[\s\S]{0,12000}?class=["']precio[^>]*[\s\S]*?<a[^>]*>\s*([^<]+)\s*<\/a>/gi)];
+  const cards = [...html.matchAll(/box_aviso(?:_premium)?_base[\s\S]{0,12000}?class=["']list_type_anuncio[^>]*>\s*([^<]+)\s*<\/span>[\s\S]{0,12000}?class=["']precio[^>]*[\s\S]*?<a[^>]*>\s*([^<]+)\s*<\/a>/gi)];
   const tokens = query.toLowerCase().split(/\s+/).filter((token) => token.length > 2);
-  return cards.map((card) => ({ title: card[1], price_ars: parsePrice(card[2]), url: "https://www.rosariogarage.com/Motos" })).filter((item) => item.price_ars && tokens.some((token) => item.title.toLowerCase().includes(token))).slice(0, 3).map((item) => ({ price_ars: item.price_ars!, url: item.url }));
+  return cards.map((card) => ({ title: card[1], price_ars: parsePrice(card[2]), url: `https://www.rosariogarage.com/${isMoto ? "Motos" : "Autos"}` })).filter((item) => item.price_ars && tokens.some((token) => item.title.toLowerCase().includes(token))).slice(0, 3).map((item) => ({ price_ars: item.price_ars!, url: item.url }));
 }
 
 async function refreshSource(admin: ReturnType<typeof createClient>, vehicleId: number, source: string, label: string, fetcher: () => Promise<Listing[]>): Promise<Result> {
