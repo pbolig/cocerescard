@@ -158,7 +158,9 @@ async function refreshReferences(vehicleId, button, output) {
   button.textContent = 'Actualizando...';
   output.innerHTML = '<span class="reference-status pending">Consultando fuentes...</span>';
   try {
-    const response = await fetch(`${baseUrl}/api/vehicles/${vehicleId}/refresh-references`, { method: 'POST' });
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error('Iniciá sesión para actualizar referencias');
+    const response = await fetch(`${baseUrl}/refresh-references`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: config.supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicle_id: Number(vehicleId) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo actualizar');
     output.innerHTML = data.results.map(result => {
