@@ -35,6 +35,11 @@ select setval('public.vehicles_id_seq', greatest(coalesce((select max(id) from p
 alter table public.vehicles alter column id set default nextval('public.vehicles_id_seq');
 alter sequence public.vehicles_id_seq owned by public.vehicles.id;
 
+create sequence if not exists public.price_references_id_seq;
+select setval('public.price_references_id_seq', greatest(coalesce((select max(id) from public.price_references), 0), 1), true);
+alter table public.price_references alter column id set default nextval('public.price_references_id_seq');
+alter sequence public.price_references_id_seq owned by public.price_references.id;
+
 drop policy if exists "Public can read vehicles" on public.vehicles;
 create policy "Public can read vehicles" on public.vehicles for select using (true);
 

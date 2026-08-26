@@ -16,6 +16,12 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) return JSON.stringify(error);
+  return String(error);
+}
+
 function parsePrice(value: string) {
   const match = value.match(/\d[\d.]*/);
   return match ? Number(match[0].replaceAll(".", "")) : null;
@@ -48,15 +54,15 @@ async function rosarioGarage(query: string): Promise<Listing[]> {
 async function refreshSource(admin: ReturnType<typeof createClient>, vehicleId: number, source: string, label: string, fetcher: () => Promise<Listing[]>): Promise<Result> {
   try {
     const listings = await fetcher();
-    const { error: deleteError } = await admin.from("price_references").delete().eq("vehicle_id", vehicleId).eq("source", source);
+    if (!listings.length) return { source, status: "no_results", count: 0, prices: [] };
+    const { data: inserted, error: insertError } = await admin.from("price_references").insert(listings.map((listing) => ({ ...listing, vehicle_id: vehicleId, source, source_label: label }))).select("id");
+    if (insertError) throw insertError;
+    const insertedIds = (inserted || []).map((row) => row.id);
+    const { error: deleteError } = await admin.from("price_references").delete().eq("vehicle_id", vehicleId).eq("source", source).not("id", "in", `(${insertedIds.join(",")})`);
     if (deleteError) throw deleteError;
-    if (listings.length) {
-      const { error: insertError } = await admin.from("price_references").insert(listings.map((listing) => ({ ...listing, vehicle_id: vehicleId, source, source_label: label })));
-      if (insertError) throw insertError;
-    }
     return { source, status: listings.length ? "ok" : "no_results", count: listings.length, prices: listings.map((listing) => listing.price_ars) };
   } catch (error) {
-    return { source, status: "error", message: error instanceof Error ? error.message : String(error) };
+    return { source, status: "error", message: errorMessage(error) };
   }
 }
 
