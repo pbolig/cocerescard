@@ -6,6 +6,8 @@ import requests
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from scrapers.mercadolibre import search_listings
+from scrapers.rosario_garage import search_listings as search_rosario_garage
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT / 'db' / 'local.sqlite3'
@@ -77,6 +79,30 @@ def dollar_rates():
     if not rates:
         return jsonify({'error': 'No se pudieron consultar las cotizaciones'}), 503
     return jsonify({'updated_at': datetime.now().isoformat(timespec='minutes'), 'rates': rates})
+
+
+@app.post('/api/vehicles/<int:vehicle_id>/refresh-references')
+def refresh_references(vehicle_id):
+    db = connection()
+    vehicle = db.execute('SELECT id, brand, model, year FROM vehicles WHERE id = ?', (vehicle_id,)).fetchone()
+    if vehicle is None:
+        db.close()
+        return jsonify({'error': 'Vehículo no encontrado'}), 404
+    query = f"{vehicle['brand']} {vehicle['model']} {vehicle['year']}"
+    results = []
+    for source, scraper, label in (('mercadolibre', search_listings, 'Mercado Libre'), ('rosario_garage', search_rosario_garage, 'Rosario Garage')):
+        try:
+            listings = scraper(query, limit=3)
+            db.execute('DELETE FROM price_references WHERE vehicle_id = ? AND source = ?', (vehicle_id, source))
+            for listing in listings:
+                db.execute('INSERT INTO price_references (vehicle_id, source, source_label, price_ars, url) VALUES (?, ?, ?, ?, ?)', (vehicle_id, source, label, listing['price_ars'], listing['url']))
+            results.append({'source': source, 'status': 'ok', 'count': len(listings), 'prices': [item['price_ars'] for item in listings]})
+        except (requests.RequestException, ValueError) as error:
+            results.append({'source': source, 'status': 'error', 'message': str(error)})
+    results.append({'source': 'official', 'status': 'unavailable', 'message': 'No hay una fuente oficial de valuación configurada'})
+    db.commit()
+    db.close()
+    return jsonify({'vehicle_id': vehicle_id, 'query': query, 'results': results})
 
 
 @app.get('/')

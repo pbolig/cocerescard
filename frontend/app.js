@@ -147,19 +147,54 @@ async function publishVehicle(event) {
   }
 }
 
+async function refreshReferences(vehicleId, button, output) {
+  const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+  const baseUrl = isLocal ? 'http://127.0.0.1:5000' : config.referenceApiUrl;
+  if (!baseUrl) {
+    output.textContent = 'Refresco manual no disponible en producción todavía.';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Actualizando...';
+  output.innerHTML = '<span class="reference-status pending">Consultando fuentes...</span>';
+  try {
+    const response = await fetch(`${baseUrl}/api/vehicles/${vehicleId}/refresh-references`, { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'No se pudo actualizar');
+    output.innerHTML = data.results.map(result => {
+      const label = result.source === 'mercadolibre' ? 'Mercado Libre' : result.source === 'rosario_garage' ? 'Rosario Garage' : 'Oficial';
+      const detail = result.status === 'ok' ? `OK${result.count ? ` · ${result.count} avisos` : ' · Sin resultados'}` : result.status === 'unavailable' ? 'No configurado' : 'Error';
+      const copy = result.status === 'error' ? `<button class="copy-error" type="button" data-error="${encodeURIComponent(result.message)}">Copiar error</button>` : '';
+      return `<span class="reference-status ${result.status}"><i class="dot ${result.source}"></i>${label}<b>${detail}</b>${copy}</span>`;
+    }).join('');
+    await load();
+  } catch (error) {
+    output.innerHTML = `<span class="reference-status error">Error: ${error.message} <button class="copy-error" type="button" data-error="${encodeURIComponent(error.message)}">Copiar error</button></span>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Actualizar comparación';
+  }
+}
+
 function render(vehicles) {
   status.textContent = `${vehicles.length} vehículos encontrados`;
   grid.innerHTML = vehicles.map(vehicle => {
     const reference = vehicle.price_references?.length ? vehicle.price_references.reduce((sum, item) => sum + item.price_ars, 0) / vehicle.price_references.length : vehicle.price_ars;
     const difference = Math.round(((vehicle.price_ars - reference) / reference) * 100);
     const references = vehicle.price_references?.length ? vehicle.price_references.slice(0, 3).map(item => `<span><i class="dot ${item.source}"></i>${sourceName(item.source)} <b>${money(item.price_ars)}</b></span>`).join('') : '<span class="references-pending">Referencias pendientes de actualización</span>';
-    return `<article class="vehicle-card"><div class="vehicle-image"><img src="${vehicle.image_url}" alt="${vehicle.title}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 500%22%3E%3Crect width=%22800%22 height=%22500%22 fill=%22%23d8ded7%22/%3E%3Ctext x=%22400%22 y=%22260%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2230%22 fill=%22%2317201e%22%3EImagen no disponible%3C/text%3E%3C/svg%3E'"><span class="card-status ${vehicle.status}">${vehicle.status === 'reserved' ? 'Reservado' : 'Disponible'}</span><button class="heart" aria-label="Guardar ${vehicle.title}">♡</button></div><div class="vehicle-info"><div class="vehicle-meta"><span>${vehicle.year}</span><span>${vehicle.mileage_km.toLocaleString('es-AR')} km</span><span>${vehicle.location.split(',')[0]}</span></div><h3>${vehicle.title}</h3><div class="price-row"><strong>${money(vehicle.price_ars)}</strong><span class="price-diff ${difference <= 0 ? 'good' : ''}">${difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`}</span></div><div class="references">${references}</div></div></article>`;
+    return `<article class="vehicle-card" data-vehicle-id="${vehicle.id}"><div class="vehicle-image"><img src="${vehicle.image_url}" alt="${vehicle.title}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 500%22%3E%3Crect width=%22800%22 height=%22500%22 fill=%22%23d8ded7%22/%3E%3Ctext x=%22400%22 y=%22260%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2230%22 fill=%22%2317201e%22%3EImagen no disponible%3C/text%3E%3C/svg%3E'"><span class="card-status ${vehicle.status}">${vehicle.status === 'reserved' ? 'Reservado' : 'Disponible'}</span><button class="heart" aria-label="Guardar ${vehicle.title}">♡</button></div><div class="vehicle-info"><div class="vehicle-meta"><span>${vehicle.year}</span><span>${vehicle.mileage_km.toLocaleString('es-AR')} km</span><span>${vehicle.location.split(',')[0]}</span></div><h3>${vehicle.title}</h3><div class="price-row"><strong>${money(vehicle.price_ars)}</strong><span class="price-diff ${difference <= 0 ? 'good' : ''}">${difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`}</span></div><div class="references" data-reference-output>${references}</div><button class="refresh-references" type="button" data-refresh-id="${vehicle.id}">Actualizar comparación</button></div></article>`;
   }).join('');
 }
 
 async function load() { try { allVehicles = await getVehicles(); render(allVehicles); } catch (error) { status.textContent = 'Modo demo: iniciá la API local para ver datos actualizados.'; grid.innerHTML = ''; } }
 search.addEventListener('input', load);
 document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => { document.querySelector('.filter.active').classList.remove('active'); button.classList.add('active'); currentStatus = button.dataset.status; load(); }));
+grid.addEventListener('click', event => {
+  const refreshButton = event.target.closest('[data-refresh-id]');
+  if (refreshButton) refreshReferences(refreshButton.dataset.refreshId, refreshButton, refreshButton.previousElementSibling);
+  const copyButton = event.target.closest('.copy-error');
+  if (copyButton) navigator.clipboard.writeText(decodeURIComponent(copyButton.dataset.error)).then(() => { copyButton.textContent = 'Copiado'; });
+});
 load();
 loadDollarRates();
 setInterval(loadDollarRates, 15 * 60 * 1000);
