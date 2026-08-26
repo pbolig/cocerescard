@@ -140,7 +140,6 @@ async function publishVehicle(event) {
     if (insertError) throw insertError;
     vehicleForm.reset();
     formStatus.textContent = 'Vehículo publicado. Las referencias de mercado se actualizarán en la próxima corrida.';
-    await load();
   } catch (error) {
     formStatus.textContent = error.message || 'No se pudo publicar el vehículo.';
     formStatus.classList.add('error');
