@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import sqlite3
+import requests
 from scrapers.mercadolibre import search_listings
 from supabase import create_client
 
@@ -24,7 +25,12 @@ def init_db():
 init_db()
 db = sqlite3.connect(DB_PATH)
 for vehicle_id, query in db.execute('SELECT id, title FROM vehicles'):
-    listings = search_listings(query, limit=3)
+    try:
+        listings = search_listings(query, limit=3)
+    except requests.RequestException as error:
+        print(f'No se pudo consultar Mercado Libre para {query}: {error}')
+        continue
+    db.execute("DELETE FROM price_references WHERE vehicle_id = ? AND source = 'mercadolibre'", (vehicle_id,))
     for listing in listings:
         db.execute('INSERT INTO price_references (vehicle_id, source, source_label, price_ars, url) VALUES (?, ?, ?, ?, ?)', (vehicle_id, listing['source'], 'Mercado Libre', listing['price_ars'], listing['url']))
 db.commit()
@@ -35,7 +41,11 @@ if os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_SERVICE_ROLE_KEY'):
     client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
     vehicles = client.table('vehicles').select('id, title').execute().data or []
     for vehicle in vehicles:
-        listings = search_listings(vehicle['title'], limit=3)
+        try:
+            listings = search_listings(vehicle['title'], limit=3)
+        except requests.RequestException as error:
+            print(f"No se pudo consultar Mercado Libre para {vehicle['title']}: {error}")
+            continue
         client.table('price_references').delete().eq('vehicle_id', vehicle['id']).eq('source', 'mercadolibre').execute()
         references = [{'vehicle_id': vehicle['id'], 'source': listing['source'], 'source_label': 'Mercado Libre', 'price_ars': listing['price_ars'], 'url': listing['url']} for listing in listings]
         if references:

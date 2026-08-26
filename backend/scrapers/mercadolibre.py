@@ -5,7 +5,10 @@ import requests
 
 def search_listings(query, site='MLA', limit=10):
     url = f'https://api.mercadolibre.com/sites/{site}/search'
-    response = requests.get(url, params={'q': query, 'limit': limit}, timeout=20)
+    headers = {}
+    if os.getenv('MELI_ACCESS_TOKEN'):
+        headers['Authorization'] = f"Bearer {os.environ['MELI_ACCESS_TOKEN']}"
+    response = requests.get(url, params={'q': query, 'limit': limit}, headers=headers, timeout=20)
     response.raise_for_status()
     return [{'title': item['title'], 'price_ars': item['price'], 'url': item['permalink'], 'source': 'mercadolibre'} for item in response.json().get('results', [])]
 

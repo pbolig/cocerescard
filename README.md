@@ -21,6 +21,7 @@ Abrir `frontend/index.html` o servir `frontend` con un servidor estático. La ap
 3. Cada push a `main` sincroniza SQLite mediante `sync.yml`.
 4. `update_prices.yml` actualiza referencias diariamente. Revisar términos, límites y permisos de cada fuente antes de activar scraping.
 5. Para activar registro, recuperación de contraseña y publicación de vehículos, volver a ejecutar `supabase_schema.sql` en el SQL Editor. En Authentication → URL Configuration, agregar la URL de GitHub Pages como Site URL y Redirect URL.
+6. Para evitar bloqueos de Mercado Libre en GitHub Actions, crear el secret `MELI_ACCESS_TOKEN` con un token de una aplicación de Mercado Libre.
 
 ## Fotos de vehículos
 
