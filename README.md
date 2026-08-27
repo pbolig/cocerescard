@@ -21,7 +21,8 @@ Abrir `frontend/index.html` o servir `frontend` con un servidor estático. La ap
 3. Cada push a `main` sincroniza SQLite mediante `sync.yml`.
 4. `update_prices.yml` actualiza referencias diariamente. Revisar términos, límites y permisos de cada fuente antes de activar scraping.
 5. Para activar registro, recuperación de contraseña y publicación de vehículos, volver a ejecutar `supabase_schema.sql` en el SQL Editor. En Authentication → URL Configuration, agregar la URL de GitHub Pages como Site URL y Redirect URL.
-6. Para evitar bloqueos y vencimientos de Mercado Libre en GitHub Actions, crear los secrets `MELI_CLIENT_ID`, `MELI_CLIENT_SECRET` y `MELI_REFRESH_TOKEN`. `MELI_ACCESS_TOKEN` puede mantenerse como respaldo, pero el workflow prioriza la renovación automática.
+6. Para consultar Mercado Libre, crear los secrets `MELI_CLIENT_ID`, `MELI_CLIENT_SECRET` y `MELI_REFRESH_TOKEN` obtenidos mediante el flujo OAuth de usuario. `MELI_ACCESS_TOKEN` puede mantenerse como respaldo. `client_credentials` no autoriza la búsqueda de publicaciones y no debe usarse para este endpoint.
+7. Configurar esos mismos secrets en Supabase Edge Functions y desplegar la función después de cada cambio: `supabase secrets set MELI_CLIENT_ID=... MELI_CLIENT_SECRET=... MELI_REFRESH_TOKEN=... --project-ref <PROJECT_REF>` y `supabase functions deploy refresh-references --project-ref <PROJECT_REF>`. Los secrets de GitHub Actions no se copian automáticamente a Supabase.
 
 ## Fotos de vehículos
 

@@ -34,49 +34,32 @@ async function mercadoLibre(query: string): Promise<Listing[]> {
   const refreshToken = Deno.env.get("MELI_REFRESH_TOKEN");
 
   let tokenStatus = "";
-  if (clientId && clientSecret) {
+  if (clientId && clientSecret && refreshToken) {
     try {
-      // Prioritize client_credentials since it is stateless and doesn't suffer from single-use expiration
       const tokenResponse = await fetch("https://api.mercadolibre.com/oauth/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          grant_type: "client_credentials",
+          grant_type: "refresh_token",
           client_id: clientId,
-          client_secret: clientSecret
+          client_secret: clientSecret,
+          refresh_token: refreshToken
         })
       });
       if (tokenResponse.ok) {
         token = (await tokenResponse.json()).access_token;
-        tokenStatus = "client_credentials OK";
+        tokenStatus = "refresh_token OK";
       } else {
         const errText = await tokenResponse.text();
-        tokenStatus = `client_credentials failed (HTTP ${tokenResponse.status}: ${errText})`;
-        if (refreshToken) {
-          const refreshResponse = await fetch("https://api.mercadolibre.com/oauth/token", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              grant_type: "refresh_token",
-              client_id: clientId,
-              client_secret: clientSecret,
-              refresh_token: refreshToken
-            })
-          });
-          if (refreshResponse.ok) {
-            token = (await refreshResponse.json()).access_token;
-            tokenStatus += ", refresh_token OK";
-          } else {
-            const refErrText = await refreshResponse.text();
-            tokenStatus += `, refresh_token failed (HTTP ${refreshResponse.status}: ${refErrText})`;
-          }
-        }
+        tokenStatus = `refresh_token failed (HTTP ${tokenResponse.status}: ${errText})`;
       }
     } catch (e) {
       tokenStatus = `Error fetching token: ${e instanceof Error ? e.message : String(e)}`;
     }
+  } else if (token) {
+    tokenStatus = "MELI_ACCESS_TOKEN configured";
   } else {
-    tokenStatus = `Missing credentials (clientId: ${!!clientId}, clientSecret: ${!!clientSecret}, refreshToken: ${!!refreshToken})`;
+    tokenStatus = `Missing user token (clientId: ${!!clientId}, clientSecret: ${!!clientSecret}, refreshToken: ${!!refreshToken}, accessToken: ${!!token})`;
   }
 
   const response = await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${encodeURIComponent(query)}&limit=3`, {

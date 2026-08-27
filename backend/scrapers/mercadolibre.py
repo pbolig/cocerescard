@@ -15,32 +15,16 @@ def get_access_token():
     refresh_token = os.getenv('MELI_REFRESH_TOKEN')
 
     if client_id and client_secret:
-        try:
-            # Prioritize client_credentials as it is stateless and doesn't expire/require updates
+        if refresh_token:
             response = requests.post('https://api.mercadolibre.com/oauth/token', data={
-                'grant_type': 'client_credentials',
+                'grant_type': 'refresh_token',
                 'client_id': client_id,
                 'client_secret': client_secret,
+                'refresh_token': refresh_token,
             }, timeout=20)
             if response.status_code == 200:
                 _access_token = response.json()['access_token']
                 return _access_token
-        except requests.RequestException:
-            pass
-
-        if refresh_token:
-            try:
-                response = requests.post('https://api.mercadolibre.com/oauth/token', data={
-                    'grant_type': 'refresh_token',
-                    'client_id': client_id,
-                    'client_secret': client_secret,
-                    'refresh_token': refresh_token,
-                }, timeout=20)
-                if response.status_code == 200:
-                    _access_token = response.json()['access_token']
-                    return _access_token
-            except requests.RequestException:
-                pass
 
     _access_token = os.getenv('MELI_ACCESS_TOKEN')
     return _access_token
