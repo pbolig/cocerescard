@@ -83,7 +83,8 @@ async function mercadoLibre(query: string): Promise<Listing[]> {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
   });
   if (!response.ok) {
-    throw new Error(`Mercado Libre: HTTP ${response.status} (Token status: ${tokenStatus})`);
+    const errText = await response.text();
+    throw new Error(`Mercado Libre: HTTP ${response.status} - ${errText} (Token status: ${tokenStatus})`);
   }
   const data = await response.json();
   return (data.results || []).map((item: { price: number; permalink: string }) => ({ price_ars: item.price, url: item.permalink }));

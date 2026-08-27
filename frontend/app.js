@@ -155,22 +155,68 @@ async function refreshReferences(vehicleId, button, output) {
   }
   button.disabled = true;
   button.textContent = 'Actualizando...';
-  output.innerHTML = '<span class="reference-status pending">Consultando fuentes...</span>';
+  const referenceOutput = output.querySelector('[data-reference-output]') || output;
+  referenceOutput.innerHTML = '<span class="reference-status pending">Consultando fuentes...</span>';
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error('Iniciá sesión para actualizar referencias');
     const response = await fetch(`${baseUrl}/refresh-references`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: config.supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicle_id: Number(vehicleId) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo actualizar');
-    output.innerHTML = data.results.map(result => {
+
+    let updatedVehicle = null;
+    try {
+      if (config.supabaseUrl && config.supabaseAnonKey) {
+        const url = `${config.supabaseUrl}/rest/v1/vehicles?select=*,price_references(*)&id=eq.${vehicleId}`;
+        const res = await fetch(url, { headers: { apikey: config.supabaseAnonKey, Authorization: `Bearer ${config.supabaseAnonKey}` } });
+        if (res.ok) {
+          const list = await res.json();
+          if (list && list.length > 0) updatedVehicle = list[0];
+        }
+      } else {
+        const res = await fetch(`${localApi}/${vehicleId}`);
+        if (res.ok) updatedVehicle = await res.json();
+      }
+    } catch (e) {
+      console.error('Error fetching updated references:', e);
+    }
+
+    referenceOutput.innerHTML = data.results.map(result => {
       const label = result.source === 'mercadolibre' ? 'Mercado Libre' : result.source === 'rosario_garage' ? 'Rosario Garage' : 'Oficial';
-      const prices = result.prices?.length ? ` · ${result.prices.map(price => dollarMoney(price)).join(' / ')}` : '';
-      const detail = result.status === 'ok' ? `OK · ${result.count} avisos${prices}` : result.status === 'no_results' ? 'Sin resultados' : result.status === 'unavailable' ? 'No configurado' : 'Error';
+      const detail = result.status === 'ok' ? `OK · ${result.count} avisos` : result.status === 'no_results' ? 'Sin resultados' : result.status === 'unavailable' ? 'No configurado' : 'Error';
       const copy = result.status === 'error' ? `<button class="copy-error" type="button" data-error="${encodeURIComponent(result.message)}">Copiar error</button>` : '';
-      return `<span class="reference-status ${result.status}"><i class="dot ${result.source}"></i>${label}<b>${detail}</b>${copy}</span>`;
+      
+      let refsHtml = '';
+      if (updatedVehicle) {
+        const sourceRefs = (updatedVehicle.price_references || []).filter(r => r.source === result.source);
+        if (sourceRefs.length > 0) {
+          refsHtml = '<div style="margin-top: 4px; padding-left: 15px; display: flex; flex-direction: column; gap: 4px;">' + 
+            sourceRefs.map(r => `<span class="reference-price"><b>${money(r.price_ars)}</b>${r.url ? `<a href="${r.url}" target="_blank" rel="noopener">Ver aviso</a>` : ''}</span>`).join('') +
+            '</div>';
+        }
+      }
+
+      return `<div style="margin-bottom: 8px;"><span class="reference-status ${result.status}"><i class="dot ${result.source}"></i>${label}<b>${detail}</b>${copy}</span>${refsHtml}</div>`;
     }).join('');
+
+    if (updatedVehicle) {
+      const index = allVehicles.findIndex(v => v.id === updatedVehicle.id);
+      if (index !== -1) {
+        allVehicles[index] = updatedVehicle;
+        const reference = updatedVehicle.price_references?.length ? updatedVehicle.price_references.reduce((sum, item) => sum + item.price_ars, 0) / updatedVehicle.price_references.length : updatedVehicle.price_ars;
+        const difference = Math.round(((updatedVehicle.price_ars - reference) / reference) * 100);
+        const card = document.querySelector(`.vehicle-card[data-vehicle-id="${vehicleId}"]`);
+        if (card) {
+          const diffSpan = card.querySelector('.price-diff');
+          if (diffSpan) {
+            diffSpan.className = `price-diff ${difference <= 0 ? 'good' : ''}`;
+            diffSpan.textContent = difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`;
+          }
+        }
+      }
+    }
   } catch (error) {
-    output.innerHTML = `<span class="reference-status error">Error: ${error.message} <button class="copy-error" type="button" data-error="${encodeURIComponent(error.message)}">Copiar error</button></span>`;
+    referenceOutput.innerHTML = `<span class="reference-status error">Error: ${error.message} <button class="copy-error" type="button" data-error="${encodeURIComponent(error.message)}">Copiar error</button></span>`;
   } finally {
     button.disabled = false;
     button.textContent = 'Actualizar comparación';
