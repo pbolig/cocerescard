@@ -33,6 +33,7 @@ async function mercadoLibre(query: string): Promise<Listing[]> {
   const clientSecret = Deno.env.get("MELI_CLIENT_SECRET");
   const refreshToken = Deno.env.get("MELI_REFRESH_TOKEN");
 
+  let tokenStatus = "";
   if (clientId && clientSecret) {
     try {
       // Prioritize client_credentials since it is stateless and doesn't suffer from single-use expiration
@@ -47,31 +48,43 @@ async function mercadoLibre(query: string): Promise<Listing[]> {
       });
       if (tokenResponse.ok) {
         token = (await tokenResponse.json()).access_token;
-      } else if (refreshToken) {
-        // Fallback to refresh_token if client_credentials fails
-        const refreshResponse = await fetch("https://api.mercadolibre.com/oauth/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            grant_type: "refresh_token",
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: refreshToken
-          })
-        });
-        if (refreshResponse.ok) {
-          token = (await refreshResponse.json()).access_token;
+        tokenStatus = "client_credentials OK";
+      } else {
+        const errText = await tokenResponse.text();
+        tokenStatus = `client_credentials failed (HTTP ${tokenResponse.status}: ${errText})`;
+        if (refreshToken) {
+          const refreshResponse = await fetch("https://api.mercadolibre.com/oauth/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "refresh_token",
+              client_id: clientId,
+              client_secret: clientSecret,
+              refresh_token: refreshToken
+            })
+          });
+          if (refreshResponse.ok) {
+            token = (await refreshResponse.json()).access_token;
+            tokenStatus += ", refresh_token OK";
+          } else {
+            const refErrText = await refreshResponse.text();
+            tokenStatus += `, refresh_token failed (HTTP ${refreshResponse.status}: ${refErrText})`;
+          }
         }
       }
     } catch (e) {
-      console.error("Error refreshing Mercado Libre token:", e);
+      tokenStatus = `Error fetching token: ${e instanceof Error ? e.message : String(e)}`;
     }
+  } else {
+    tokenStatus = `Missing credentials (clientId: ${!!clientId}, clientSecret: ${!!clientSecret}, refreshToken: ${!!refreshToken})`;
   }
 
   const response = await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${encodeURIComponent(query)}&limit=3`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
   });
-  if (!response.ok) throw new Error(`Mercado Libre: HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`Mercado Libre: HTTP ${response.status} (Token status: ${tokenStatus})`);
+  }
   const data = await response.json();
   return (data.results || []).map((item: { price: number; permalink: string }) => ({ price_ars: item.price, url: item.permalink }));
 }
