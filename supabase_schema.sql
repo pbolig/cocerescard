@@ -75,3 +75,12 @@ drop policy if exists "Users can delete their vehicle images" on storage.objects
 create policy "Users can delete their vehicle images"
 on storage.objects for delete to authenticated
 using (bucket_id = 'vehicle-images' and (storage.foldername(name))[1] = (select auth.uid()::text));
+
+create table if not exists public.settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.settings enable row level security;
+
