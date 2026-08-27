@@ -148,27 +148,26 @@ async function publishVehicle(event) {
 
 async function refreshReferences(vehicleId, button, output) {
   const isLocal = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
-  const baseUrl = isLocal ? 'http://127.0.0.1:5000' : config.referenceApiUrl;
+  const baseUrl = isLocal ? `${localApi}/${vehicleId}/refresh-references` : config.referenceApiUrl ? `${config.referenceApiUrl}/refresh-references` : '';
   if (!baseUrl) {
     output.textContent = 'Refresco manual no disponible en producción todavía.';
     return;
   }
   button.disabled = true;
   button.textContent = 'Actualizando...';
-  const referenceOutput = output.querySelector('[data-reference-output]') || output;
-  referenceOutput.innerHTML = '<span class="reference-status pending">Consultando fuentes...</span>';
+  output.innerHTML = '<span class="reference-status pending">Consultando fuentes...</span>';
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error('Iniciá sesión para actualizar referencias');
-    const response = await fetch(`${baseUrl}/refresh-references`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: config.supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicle_id: Number(vehicleId) }) });
+    const response = await fetch(baseUrl, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: config.supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicle_id: Number(vehicleId) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo actualizar');
 
     let updatedVehicle = null;
     try {
-      if (config.supabaseUrl && config.supabaseAnonKey) {
+      if (!isLocal && config.supabaseUrl && config.supabaseAnonKey) {
         const url = `${config.supabaseUrl}/rest/v1/vehicles?select=*,price_references(*)&id=eq.${vehicleId}`;
-        const res = await fetch(url, { headers: { apikey: config.supabaseAnonKey, Authorization: `Bearer ${config.supabaseAnonKey}` } });
+        const res = await fetch(url, { cache: 'no-store', headers: { apikey: config.supabaseAnonKey, Authorization: `Bearer ${session.access_token}` } });
         if (res.ok) {
           const list = await res.json();
           if (list && list.length > 0) updatedVehicle = list[0];
@@ -181,7 +180,7 @@ async function refreshReferences(vehicleId, button, output) {
       console.error('Error fetching updated references:', e);
     }
 
-    referenceOutput.innerHTML = data.results.map(result => {
+    output.innerHTML = data.results.map(result => {
       const label = result.source === 'mercadolibre' ? 'Mercado Libre' : result.source === 'rosario_garage' ? 'Rosario Garage' : 'Oficial';
       const detail = result.status === 'ok' ? `OK · ${result.count} avisos` : result.status === 'no_results' ? 'Sin resultados' : result.status === 'unavailable' ? 'No configurado' : 'Error';
       const copy = result.status === 'error' ? `<button class="copy-error" type="button" data-error="${encodeURIComponent(result.message)}">Copiar error</button>` : '';
@@ -200,27 +199,38 @@ async function refreshReferences(vehicleId, button, output) {
     }).join('');
 
     if (updatedVehicle) {
-      const index = allVehicles.findIndex(v => v.id === updatedVehicle.id);
+      const index = allVehicles.findIndex(v => String(v.id) === String(updatedVehicle.id));
       if (index !== -1) {
         allVehicles[index] = updatedVehicle;
-        const reference = updatedVehicle.price_references?.length ? updatedVehicle.price_references.reduce((sum, item) => sum + item.price_ars, 0) / updatedVehicle.price_references.length : updatedVehicle.price_ars;
-        const difference = Math.round(((updatedVehicle.price_ars - reference) / reference) * 100);
-        const card = document.querySelector(`.vehicle-card[data-vehicle-id="${vehicleId}"]`);
-        if (card) {
-          const diffSpan = card.querySelector('.price-diff');
-          if (diffSpan) {
-            diffSpan.className = `price-diff ${difference <= 0 ? 'good' : ''}`;
-            diffSpan.textContent = difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`;
-          }
+      }
+      const reference = updatedVehicle.price_references?.length ? updatedVehicle.price_references.reduce((sum, item) => sum + item.price_ars, 0) / updatedVehicle.price_references.length : updatedVehicle.price_ars;
+      const difference = Math.round(((updatedVehicle.price_ars - reference) / reference) * 100);
+      const card = document.querySelector(`.vehicle-card[data-vehicle-id="${vehicleId}"]`);
+      if (card) {
+        const referencesOutput = card.querySelector('[data-reference-values]');
+        if (referencesOutput) referencesOutput.innerHTML = renderReferenceValues(updatedVehicle);
+        const diffSpan = card.querySelector('.price-diff');
+        if (diffSpan) {
+          diffSpan.className = `price-diff ${difference <= 0 ? 'good' : ''}`;
+          diffSpan.textContent = difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`;
         }
       }
     }
   } catch (error) {
-    referenceOutput.innerHTML = `<span class="reference-status error">Error: ${error.message} <button class="copy-error" type="button" data-error="${encodeURIComponent(error.message)}">Copiar error</button></span>`;
+    output.innerHTML = `<span class="reference-status error">Error: ${error.message} <button class="copy-error" type="button" data-error="${encodeURIComponent(error.message)}">Copiar error</button></span>`;
   } finally {
     button.disabled = false;
     button.textContent = 'Actualizar comparación';
   }
+}
+
+function renderReferenceValues(vehicle) {
+  const referencesBySource = Object.groupBy?.(vehicle.price_references || [], item => item.source) || (vehicle.price_references || []).reduce((groups, item) => ({ ...groups, [item.source]: [...(groups[item.source] || []), item] }), {});
+  return ['mercadolibre', 'rosario_garage', 'official'].map(source => {
+    const items = referencesBySource[source] || [];
+    const content = items.length ? items.map(item => `<span class="reference-price"><b>${money(item.price_ars)}</b>${item.url ? `<a href="${item.url}" target="_blank" rel="noopener">Ver aviso</a>` : ''}</span>`).join('') : `<span class="references-pending">Pendiente de actualización</span>`;
+    return `<div class="reference-source"><span><i class="dot ${source}"></i>${sourceName(source)}</span><div>${content}</div></div>`;
+  }).join('');
 }
 
 function render(vehicles) {
@@ -228,15 +238,7 @@ function render(vehicles) {
   grid.innerHTML = vehicles.map(vehicle => {
     const reference = vehicle.price_references?.length ? vehicle.price_references.reduce((sum, item) => sum + item.price_ars, 0) / vehicle.price_references.length : vehicle.price_ars;
     const difference = Math.round(((vehicle.price_ars - reference) / reference) * 100);
-    const referencesBySource = Object.groupBy?.(vehicle.price_references || [], item => item.source) || (vehicle.price_references || []).reduce((groups, item) => ({ ...groups, [item.source]: [...(groups[item.source] || []), item] }), {});
-    const referenceSources = ['mercadolibre', 'rosario_garage', 'official'];
-    const references = referenceSources.map(source => {
-      const items = referencesBySource[source] || [];
-      const label = sourceName(source);
-      const content = items.length ? items.map(item => `<span class="reference-price"><b>${money(item.price_ars)}</b>${item.url ? `<a href="${item.url}" target="_blank" rel="noopener">Ver aviso</a>` : ''}</span>`).join('') : `<span class="references-pending">Pendiente de actualización</span>`;
-      return `<div class="reference-source"><span><i class="dot ${source}"></i>${label}</span><div>${content}</div></div>`;
-    }).join('');
-    return `<article class="vehicle-card" data-vehicle-id="${vehicle.id}"><div class="vehicle-image"><img src="${vehicle.image_url}" alt="${vehicle.title}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 500%22%3E%3Crect width=%22800%22 height=%22500%22 fill=%22%23d8ded7%22/%3E%3Ctext x=%22400%22 y=%22260%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2230%22 fill=%22%2317201e%22%3EImagen no disponible%3C/text%3E%3C/svg%3E'""><span class="card-status ${vehicle.status}">${vehicle.status === 'reserved' ? 'Reservado' : 'Disponible'}</span><button class="heart" aria-label="Guardar ${vehicle.title}">♡</button></div><div class="vehicle-info"><div class="vehicle-meta"><span>${vehicle.year}</span><span>${vehicle.mileage_km.toLocaleString('es-AR')} km</span><span>${vehicle.location.split(',')[0]}</span></div><h3>${vehicle.title}</h3><div class="price-row"><strong>${money(vehicle.price_ars)}</strong><span class="price-diff ${difference <= 0 ? 'good' : ''}">${difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`}</span></div><details class="references-dropdown"><summary>Comparar referencias</summary><div class="references" data-reference-output>${references}</div></details><button class="refresh-references" type="button" data-refresh-id="${vehicle.id}">Actualizar comparación</button></div></article>`;
+    return `<article class="vehicle-card" data-vehicle-id="${vehicle.id}"><div class="vehicle-image"><img src="${vehicle.image_url}" alt="${vehicle.title}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 500%22%3E%3Crect width=%22800%22 height=%22500%22 fill=%22%23d8ded7%22/%3E%3Ctext x=%22400%22 y=%22260%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2230%22 fill=%22%2317201e%22%3EImagen no disponible%3C/text%3E%3C/svg%3E'""'><span class="card-status ${vehicle.status}">${vehicle.status === 'reserved' ? 'Reservado' : 'Disponible'}</span><button class="heart" aria-label="Guardar ${vehicle.title}">♡</button></div><div class="vehicle-info"><div class="vehicle-meta"><span>${vehicle.year}</span><span>${vehicle.mileage_km.toLocaleString('es-AR')} km</span><span>${vehicle.location.split(',')[0]}</span></div><h3>${vehicle.title}</h3><div class="price-row"><strong>${money(vehicle.price_ars)}</strong><span class="price-diff ${difference <= 0 ? 'good' : ''}">${difference <= 0 ? `${Math.abs(difference)}% bajo ref.` : `+${difference}% vs ref.`}</span></div><details class="references-dropdown"><summary>Comparar referencias</summary><div class="references" data-reference-values>${renderReferenceValues(vehicle)}</div></details><button class="refresh-references" type="button" data-refresh-id="${vehicle.id}">Actualizar comparación</button><div class="refresh-result" data-refresh-output aria-live="polite"></div></div></article>`;
   }).join('');
 }
 
@@ -245,7 +247,7 @@ search.addEventListener('input', load);
 document.querySelectorAll('.filter').forEach(button => button.addEventListener('click', () => { document.querySelector('.filter.active').classList.remove('active'); button.classList.add('active'); currentStatus = button.dataset.status; load(); }));
 grid.addEventListener('click', event => {
   const refreshButton = event.target.closest('[data-refresh-id]');
-  if (refreshButton) refreshReferences(refreshButton.dataset.refreshId, refreshButton, refreshButton.previousElementSibling);
+  if (refreshButton) refreshReferences(refreshButton.dataset.refreshId, refreshButton, refreshButton.nextElementSibling);
   const copyButton = event.target.closest('.copy-error');
   if (copyButton) navigator.clipboard.writeText(decodeURIComponent(copyButton.dataset.error)).then(() => { copyButton.textContent = 'Copiado'; });
 });
