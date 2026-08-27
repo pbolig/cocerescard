@@ -99,7 +99,6 @@ def refresh_references(vehicle_id):
             results.append({'source': source, 'status': 'ok', 'count': len(listings), 'prices': [item['price_ars'] for item in listings]})
         except (requests.RequestException, ValueError) as error:
             results.append({'source': source, 'status': 'error', 'message': str(error)})
-    results.append({'source': 'official', 'status': 'unavailable', 'message': 'No hay una fuente oficial de valuación configurada'})
     db.commit()
     db.close()
     return jsonify({'vehicle_id': vehicle_id, 'query': query, 'results': results})

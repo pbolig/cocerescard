@@ -180,7 +180,7 @@ async function refreshReferences(vehicleId, button, output) {
       console.error('Error fetching updated references:', e);
     }
 
-    output.innerHTML = data.results.map(result => {
+    output.innerHTML = data.results.filter(result => result.source !== 'official').map(result => {
       const label = result.source === 'mercadolibre' ? 'Mercado Libre' : result.source === 'rosario_garage' ? 'Rosario Garage' : 'Oficial';
       const detail = result.status === 'ok' ? `OK · ${result.count} avisos` : result.status === 'no_results' ? 'Sin resultados' : result.status === 'unavailable' ? 'No configurado' : 'Error';
       const copy = result.status === 'error' ? `<button class="copy-error" type="button" data-error="${encodeURIComponent(result.message)}">Copiar error</button>` : '';
@@ -226,7 +226,7 @@ async function refreshReferences(vehicleId, button, output) {
 
 function renderReferenceValues(vehicle) {
   const referencesBySource = Object.groupBy?.(vehicle.price_references || [], item => item.source) || (vehicle.price_references || []).reduce((groups, item) => ({ ...groups, [item.source]: [...(groups[item.source] || []), item] }), {});
-  return ['mercadolibre', 'rosario_garage', 'official'].map(source => {
+  return ['mercadolibre', 'rosario_garage'].map(source => {
     const items = referencesBySource[source] || [];
     const content = items.length ? items.map(item => `<span class="reference-price"><b>${money(item.price_ars)}</b>${item.url ? `<a href="${item.url}" target="_blank" rel="noopener">Ver aviso</a>` : ''}</span>`).join('') : `<span class="references-pending">Pendiente de actualización</span>`;
     return `<div class="reference-source"><span><i class="dot ${source}"></i>${sourceName(source)}</span><div>${content}</div></div>`;

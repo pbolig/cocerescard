@@ -122,6 +122,6 @@ Deno.serve(async (request) => {
   const { data: vehicle, error: vehicleError } = await admin.from("vehicles").select("id, brand, model, year").eq("id", vehicleId).single();
   if (vehicleError || !vehicle) return json({ error: "Vehículo no encontrado" }, 404);
   const query = `${vehicle.brand} ${vehicle.model} ${vehicle.year}`;
-  const results = [await refreshSource(admin, vehicleId, "mercadolibre", "Mercado Libre", () => mercadoLibre(query)), await refreshSource(admin, vehicleId, "rosario_garage", "Rosario Garage", () => rosarioGarage(query)), { source: "official", status: "unavailable", message: "No hay una fuente oficial de valuación configurada" }];
+  const results = [await refreshSource(admin, vehicleId, "mercadolibre", "Mercado Libre", () => mercadoLibre(query)), await refreshSource(admin, vehicleId, "rosario_garage", "Rosario Garage", () => rosarioGarage(query))];
   return json({ vehicle_id: vehicleId, query, results });
 });
