@@ -34,9 +34,14 @@ def search_listings(query, site='MLA', limit=10):
     url = f'https://api.mercadolibre.com/sites/{site}/search'
     headers = {}
     access_token = get_access_token()
-    if access_token:
-        headers['Authorization'] = f'Bearer {access_token}'
+    if not access_token:
+        raise requests.HTTPError('Mercado Libre: falta un access token de usuario')
+    headers['Authorization'] = f'Bearer {access_token}'
+    user_response = requests.get('https://api.mercadolibre.com/users/me', headers=headers, timeout=20)
+    user_response.raise_for_status()
     response = requests.get(url, params={'q': query, 'limit': limit}, headers=headers, timeout=20)
+    if response.status_code == 403:
+        raise requests.HTTPError(f'Mercado Libre: HTTP 403 forbidden; token válido en /users/me. Revisar IP permitida, scopes y estado de la aplicación')
     response.raise_for_status()
     return [{'title': item['title'], 'price_ars': item['price'], 'url': item['permalink'], 'source': 'mercadolibre'} for item in response.json().get('results', [])]
 

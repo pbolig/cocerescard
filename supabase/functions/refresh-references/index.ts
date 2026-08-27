@@ -62,12 +62,21 @@ async function mercadoLibre(query: string): Promise<Listing[]> {
     tokenStatus = `Missing user token (clientId: ${!!clientId}, clientSecret: ${!!clientSecret}, refreshToken: ${!!refreshToken}, accessToken: ${!!token})`;
   }
 
+  if (!token) throw new Error(`Mercado Libre: falta un access token de usuario (${tokenStatus})`);
+  const userResponse = await fetch("https://api.mercadolibre.com/users/me", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!userResponse.ok) {
+    const userError = await userResponse.text();
+    throw new Error(`Mercado Libre: el access token no permite /users/me (HTTP ${userResponse.status}: ${userError}; ${tokenStatus})`);
+  }
+
   const response = await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${encodeURIComponent(query)}&limit=3`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {}
+    headers: { Authorization: `Bearer ${token}` }
   });
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Mercado Libre: HTTP ${response.status} - ${errText} (Token status: ${tokenStatus})`);
+    throw new Error(`Mercado Libre: HTTP ${response.status} - ${errText} (Token válido en /users/me; ${tokenStatus}; revisar IP permitida, scopes y estado de la aplicación)`);
   }
   const data = await response.json();
   return (data.results || []).map((item: { price: number; permalink: string }) => ({ price_ars: item.price, url: item.permalink }));
