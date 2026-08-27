@@ -9,16 +9,39 @@ def get_access_token():
     global _access_token
     if _access_token:
         return _access_token
-    if os.getenv('MELI_REFRESH_TOKEN'):
-        response = requests.post('https://api.mercadolibre.com/oauth/token', data={
-            'grant_type': 'refresh_token',
-            'client_id': os.environ['MELI_CLIENT_ID'],
-            'client_secret': os.environ['MELI_CLIENT_SECRET'],
-            'refresh_token': os.environ['MELI_REFRESH_TOKEN'],
-        }, timeout=20)
-        response.raise_for_status()
-        _access_token = response.json()['access_token']
-        return _access_token
+    
+    client_id = os.getenv('MELI_CLIENT_ID')
+    client_secret = os.getenv('MELI_CLIENT_SECRET')
+    refresh_token = os.getenv('MELI_REFRESH_TOKEN')
+
+    if client_id and client_secret:
+        try:
+            # Prioritize client_credentials as it is stateless and doesn't expire/require updates
+            response = requests.post('https://api.mercadolibre.com/oauth/token', data={
+                'grant_type': 'client_credentials',
+                'client_id': client_id,
+                'client_secret': client_secret,
+            }, timeout=20)
+            if response.status_code == 200:
+                _access_token = response.json()['access_token']
+                return _access_token
+        except requests.RequestException:
+            pass
+
+        if refresh_token:
+            try:
+                response = requests.post('https://api.mercadolibre.com/oauth/token', data={
+                    'grant_type': 'refresh_token',
+                    'client_id': client_id,
+                    'client_secret': client_secret,
+                    'refresh_token': refresh_token,
+                }, timeout=20)
+                if response.status_code == 200:
+                    _access_token = response.json()['access_token']
+                    return _access_token
+            except requests.RequestException:
+                pass
+
     _access_token = os.getenv('MELI_ACCESS_TOKEN')
     return _access_token
 
