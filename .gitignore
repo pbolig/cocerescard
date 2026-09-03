@@ -1,6 +1,7 @@
 backend/.venv/
 backend/__pycache__/
 backend/scrapers/__pycache__/
+backend/.env
 *.pyc
 *.sqlite3
 .env

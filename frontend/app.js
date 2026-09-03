@@ -5,6 +5,7 @@ const status = document.querySelector('#status');
 const search = document.querySelector('#search');
 const dollarRates = document.querySelector('#dollar-rates');
 const supabaseClient = window.supabase && config.supabaseUrl && config.supabaseAnonKey ? window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey) : null;
+const userStatus = document.querySelector('#user-status');
 const authButton = document.querySelector('#auth-button');
 const authModal = document.querySelector('#auth-modal');
 const authForm = document.querySelector('#auth-form');
@@ -58,6 +59,7 @@ function showAuth(mode = 'login') {
   authMode = mode;
   authModal.hidden = false;
   authTitle.textContent = mode === 'signup' ? 'Crear cuenta' : mode === 'reset' ? 'Nueva contraseña' : 'Ingresar';
+  authSwitch.textContent = mode === 'signup' ? 'Iniciar sesión' : 'Crear cuenta';
   authPasswordLabel.hidden = mode === 'recovery';
   authPassword.required = mode !== 'recovery';
   authEmail.hidden = mode === 'recovery';
@@ -86,10 +88,13 @@ function showAuthStatus(message, error = false) {
 
 async function refreshAuth(session) {
   if (!session) {
+    if (userStatus) userStatus.textContent = 'No hay usuario activo';
     authButton.textContent = 'Ingresar';
     publishPanel.hidden = true;
     return;
   }
+  const email = session.user?.email || 'Usuario activo';
+  if (userStatus) userStatus.textContent = email;
   authButton.textContent = 'Cerrar sesión';
   publishPanel.hidden = false;
 }
@@ -103,8 +108,12 @@ async function handleAuth(event) {
       showAuthStatus('Contraseña actualizada.');
       setTimeout(closeAuth, 1200);
     } else if (authMode === 'signup') {
-      const { error } = await supabaseClient.auth.signUp({ email: authEmail.value, password: authPassword.value, options: { emailRedirectTo: window.location.href } });
+      const { data, error } = await supabaseClient.auth.signUp({ email: authEmail.value, password: authPassword.value, options: { emailRedirectTo: window.location.href } });
       if (error) throw error;
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        showAuthStatus('El correo ya está registrado. Por favor, iniciá sesión.', true);
+        return;
+      }
       showAuthStatus('Revisá tu correo para confirmar la cuenta.');
     } else {
       const { error } = await supabaseClient.auth.signInWithPassword({ email: authEmail.value, password: authPassword.value });
@@ -159,7 +168,17 @@ async function refreshReferences(vehicleId, button, output) {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error('Iniciá sesión para actualizar referencias');
-    const response = await fetch(baseUrl, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: config.supabaseAnonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicle_id: Number(vehicleId) }) });
+    const targetVehicle = allVehicles.find(v => String(v.id) === String(vehicleId));
+    const response = await fetch(baseUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, apikey: config.supabaseAnonKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vehicle_id: Number(vehicleId),
+        brand: targetVehicle?.brand,
+        model: targetVehicle?.model,
+        year: targetVehicle?.year
+      })
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudo actualizar');
 
