@@ -1,6 +1,12 @@
 """Consulta de referencias vía API oficial de Mercado Libre."""
 import os
 import requests
+from pathlib import Path
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(ROOT / '.env')
+load_dotenv(ROOT / 'backend' / '.env')
 
 _access_token = None
 
@@ -23,7 +29,30 @@ def get_access_token():
                 'refresh_token': refresh_token,
             }, timeout=20)
             if response.status_code == 200:
-                _access_token = response.json()['access_token']
+                data = response.json()
+                _access_token = data.get('access_token')
+                new_refresh_token = data.get('refresh_token')
+                if new_refresh_token:
+                    os.environ['MELI_REFRESH_TOKEN'] = new_refresh_token
+                    try:
+                        env_path = ROOT / 'backend' / '.env'
+                        if not env_path.exists():
+                            env_path = ROOT / '.env'
+                        if env_path.exists():
+                            lines = env_path.read_text(encoding='utf-8').splitlines()
+                            new_lines = []
+                            found = False
+                            for line in lines:
+                                if line.startswith('MELI_REFRESH_TOKEN='):
+                                    new_lines.append(f'MELI_REFRESH_TOKEN={new_refresh_token}')
+                                    found = True
+                                else:
+                                    new_lines.append(line)
+                            if not found:
+                                new_lines.append(f'MELI_REFRESH_TOKEN={new_refresh_token}')
+                            env_path.write_text('\n'.join(new_lines) + '\n', encoding='utf-8')
+                    except Exception:
+                        pass
                 return _access_token
 
     _access_token = os.getenv('MELI_ACCESS_TOKEN')

@@ -1,21 +1,29 @@
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 import sqlite3
 import re
-from datetime import datetime
-import requests
-from bs4 import BeautifulSoup
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
-from scrapers.mercadolibre import search_listings
-from scrapers.rosario_garage import search_listings as search_rosario_garage
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT / 'db' / 'local.sqlite3'
 SCHEMA_PATH = ROOT / 'db' / 'schema.sql'
 SEED_PATH = ROOT / 'db' / 'seed.sql'
+FRONTEND_PATH = ROOT / 'frontend'
+
+load_dotenv(ROOT / '.env')
+load_dotenv(ROOT / 'backend' / '.env')
+
+from datetime import datetime
+import requests
+from bs4 import BeautifulSoup
+# pyrefly: ignore [missing-import]
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
+from scrapers.mercadolibre import search_listings
+from scrapers.rosario_garage import search_listings as search_rosario_garage
+
 app = Flask(__name__)
 CORS(app)
-FRONTEND_PATH = ROOT / 'frontend'
 DOLLAR_SOURCES = {
     'bna': 'https://www.bna.com.ar/Personas',
     'dolarhoy': 'https://dolarhoy.com/cotizacion-dolar-oficial'
@@ -81,13 +89,99 @@ def dollar_rates():
     return jsonify({'updated_at': datetime.now().isoformat(timespec='minutes'), 'rates': rates})
 
 
+@app.get('/api/test-mercadolibre')
+def test_mercadolibre():
+    from scrapers.mercadolibre import get_access_token
+    
+    env_vars = {
+        'MELI_CLIENT_ID': bool(os.getenv('MELI_CLIENT_ID')),
+        'MELI_CLIENT_SECRET': bool(os.getenv('MELI_CLIENT_SECRET')),
+        'MELI_REFRESH_TOKEN': bool(os.getenv('MELI_REFRESH_TOKEN')),
+        'MELI_ACCESS_TOKEN': bool(os.getenv('MELI_ACCESS_TOKEN')),
+    }
+    
+    token = None
+    token_error = None
+    try:
+        token = get_access_token()
+    except Exception as e:
+        token_error = str(e)
+        
+    if not token:
+        return jsonify({
+            'status': 'error',
+            'message': 'No se encontró un access token. Verificá tu archivo backend/.env',
+            'env_configured': env_vars,
+            'token_error': token_error
+        }), 400
+        
+    headers = {'Authorization': f'Bearer {token}'}
+    users_me_res = None
+    try:
+        res = requests.get('https://api.mercadolibre.com/users/me', headers=headers, timeout=10)
+        users_me_res = {
+            'status_code': res.status_code,
+            'data': res.json() if res.ok else res.text
+        }
+    except Exception as e:
+        users_me_res = {'error': str(e)}
+        
+    search_res = None
+    try:
+        s_res = requests.get('https://api.mercadolibre.com/sites/MLA/search', params={'q': 'Toyota Corolla', 'limit': 3}, headers=headers, timeout=10)
+        search_res = {
+            'status_code': s_res.status_code,
+            'ok': s_res.ok,
+            'results_count': len(s_res.json().get('results', [])) if s_res.ok else 0,
+            'data': s_res.json() if s_res.ok else s_res.text
+        }
+    except Exception as e:
+        search_res = {'error': str(e)}
+        
+    return jsonify({
+        'status': 'ok' if search_res and search_res.get('ok') else 'error',
+        'env_configured': env_vars,
+        'users_me': users_me_res,
+        'search': search_res
+    })
+
+
 @app.post('/api/vehicles/<int:vehicle_id>/refresh-references')
 def refresh_references(vehicle_id):
     db = connection()
     vehicle = db.execute('SELECT id, brand, model, year FROM vehicles WHERE id = ?', (vehicle_id,)).fetchone()
     if vehicle is None:
+        data = request.get_json(silent=True) or {}
+        brand = data.get('brand')
+        model = data.get('model')
+        year = data.get('year')
+        
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_key = os.getenv('SUPABASE_ANON_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        if supabase_url and supabase_key:
+            try:
+                res = requests.get(f"{supabase_url}/rest/v1/vehicles?id=eq.{vehicle_id}", headers={'apikey': supabase_key, 'Authorization': f'Bearer {supabase_key}'}, timeout=5)
+                if res.ok:
+                    items = res.json()
+                    if items:
+                        v = items[0]
+                        db.execute('INSERT OR REPLACE INTO vehicles (id, title, brand, model, year, price_ars, mileage_km, location, image_url, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                            (v['id'], v.get('title', ''), v['brand'], v['model'], v['year'], v.get('price_ars', 0), v.get('mileage_km', 0), v.get('location', ''), v.get('image_url', ''), v.get('description', ''), v.get('status', 'available')))
+                        db.commit()
+                        vehicle = db.execute('SELECT id, brand, model, year FROM vehicles WHERE id = ?', (vehicle_id,)).fetchone()
+            except Exception as e:
+                app.logger.warning('No se pudo consultar Supabase para el vehículo %s: %s', vehicle_id, e)
+                
+        if vehicle is None and brand and model:
+            db.execute('INSERT OR REPLACE INTO vehicles (id, title, brand, model, year, price_ars, mileage_km, location, image_url, description, status) VALUES (?, ?, ?, ?, ?, 0, 0, "", "", "", "available")',
+                (vehicle_id, f"{brand} {model}", brand, model, year or 2024))
+            db.commit()
+            vehicle = db.execute('SELECT id, brand, model, year FROM vehicles WHERE id = ?', (vehicle_id,)).fetchone()
+
+    if vehicle is None:
         db.close()
         return jsonify({'error': 'Vehículo no encontrado'}), 404
+
     query = f"{vehicle['brand']} {vehicle['model']} {vehicle['year']}"
     results = []
     for source, scraper, label in (('mercadolibre', search_listings, 'Mercado Libre'), ('rosario_garage', search_rosario_garage, 'Rosario Garage')):
