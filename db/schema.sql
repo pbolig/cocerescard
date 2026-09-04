@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   mileage_km INTEGER NOT NULL DEFAULT 0,
   location TEXT NOT NULL,
   image_url TEXT NOT NULL,
+  image_urls TEXT NOT NULL DEFAULT '[]', -- Guardado en formato JSON local para soporte multi-fotos
   description TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'sold')),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -33,4 +34,21 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'comprador' CHECK (role IN ('comprador', 'vendedor', 'admin')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS inquiries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE SET NULL, -- Permite nulos al borrar vehiculo
+  vehicle_title_cache TEXT, -- Preserva título histórico
+  seller_id_cache TEXT REFERENCES profiles(id) ON DELETE SET NULL, -- Preserva dueño histórico
+  buyer_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

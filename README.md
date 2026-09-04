@@ -2,17 +2,49 @@
 
 MVP de compra y venta de vehículos para Rosario y alrededores.
 
-## Desarrollo local
+## Sitio en producción
 
-```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python local_api.py
-```
+La aplicación web en producción está disponible en el siguiente enlace de GitHub Pages:
 
-Abrir `frontend/index.html` o servir `frontend` con un servidor estático. La app intenta primero `http://127.0.0.1:5000/api/vehicles`; para producción se configura `SUPABASE_URL` en `frontend/config.js`.
+👉 **[https://pbolig.github.io/cocerescard/](https://pbolig.github.io/cocerescard/)**
+
+## Desarrollo local (Paso a paso)
+
+Para ejecutar la aplicación localmente, sigue estas instrucciones paso a paso:
+
+### Paso 1: Levantar la API local (Backend)
+1. Abre una terminal de PowerShell en la carpeta raíz del proyecto.
+2. Navega al directorio del backend e inicializa el entorno virtual de Python:
+   ```powershell
+   cd backend
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   ```
+3. Instala las dependencias necesarias indicadas en [backend/requirements.txt](backend/requirements.txt):
+   ```powershell
+   pip install -r requirements.txt
+   ```
+4. Inicia el servidor de desarrollo Flask ejecutando el archivo [backend/local_api.py](backend/local_api.py):
+   ```powershell
+   python local_api.py
+   ```
+   *Esto iniciará la API local en `http://127.0.0.1:5000`.*
+
+### Paso 2: Abrir y ejecutar el frontend
+Para ver la interfaz y el catálogo, debes servir o abrir la carpeta del frontend. Hay dos formas sencillas de hacerlo:
+
+*   **Opción recomendada (Servidor local):**
+    Abre una segunda terminal en la raíz del proyecto y ejecuta un servidor estático rápido con Python:
+    ```powershell
+    cd frontend
+    python -m http.server 8000
+    ```
+    Luego, abre tu navegador web favorito e ingresa a: **`http://localhost:8000`**
+
+*   **Opción alternativa (Abrir archivo directamente):**
+    Simplemente navega con el explorador de archivos de tu sistema operativo hasta la carpeta del frontend y haz doble clic sobre el archivo [frontend/index.html](frontend/index.html) para abrirlo directamente en el navegador.
+
+La aplicación local intentará conectarse primero con la API local configurada en `http://127.0.0.1:5000/api/vehicles`. Para su uso en producción, se configura el cliente de base de datos mediante el archivo [frontend/config.js](frontend/config.js).
 
 ## Supabase y GitHub Actions
 

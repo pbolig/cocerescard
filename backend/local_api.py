@@ -48,6 +48,12 @@ def init_db():
 
 def vehicle_payload(row, references):
     vehicle = dict(row)
+    if 'image_urls' in vehicle and isinstance(vehicle['image_urls'], str):
+        import json
+        try:
+            vehicle['image_urls'] = json.loads(vehicle['image_urls'])
+        except Exception:
+            vehicle['image_urls'] = [vehicle.get('image_url')] if vehicle.get('image_url') else []
     vehicle['price_references'] = [dict(item) for item in references]
     return vehicle
 
@@ -246,6 +252,49 @@ def vehicle(vehicle_id):
     refs = db.execute('SELECT * FROM price_references WHERE vehicle_id = ? ORDER BY source', (vehicle_id,)).fetchall()
     db.close()
     return jsonify(vehicle_payload(row, refs))
+
+
+@app.post('/api/vehicles')
+def add_vehicle():
+    data = request.json
+    import json
+    db = connection()
+    image_list = data.get('image_urls', [])
+    image_url_portada = image_list[0] if image_list else data.get('image_url', '')
+    cursor = db.execute('INSERT INTO vehicles (title, brand, model, year, price_ars, mileage_km, location, image_url, image_urls, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+               (data.get('title'), data.get('brand'), data.get('model'), int(data.get('year')), int(data.get('price_ars')), int(data.get('mileage_km')), data.get('location'), image_url_portada, json.dumps(image_list), data.get('description', ''), data.get('status', 'available')))
+    vehicle_id = cursor.lastrowid
+    db.commit()
+    db.close()
+    return jsonify({'status': 'ok', 'id': vehicle_id})
+
+
+@app.put('/api/vehicles/<int:vehicle_id>')
+def update_vehicle(vehicle_id):
+    data = request.json
+    import json
+    db = connection()
+    image_list = data.get('image_urls', [])
+    image_url_portada = image_list[0] if image_list else data.get('image_url', '')
+    
+    db.execute('UPDATE vehicles SET title = ?, brand = ?, model = ?, year = ?, price_ars = ?, mileage_km = ?, location = ?, image_url = ?, image_urls = ?, description = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+               (data.get('title'), data.get('brand'), data.get('model'), int(data.get('year')), int(data.get('price_ars')), int(data.get('mileage_km')), data.get('location'), image_url_portada, json.dumps(image_list), data.get('description', ''), data.get('status', 'available'), vehicle_id))
+    db.commit()
+    db.close()
+    return jsonify({'status': 'ok'})
+
+
+@app.delete('/api/vehicles/<int:vehicle_id>')
+def delete_vehicle(vehicle_id):
+    db = connection()
+    # Permitimos conservar las consultas asociadas de forma local
+    # Primero actualizamos las consultas apuntadas a este vehicle_id para que no liguen FK y se mantengan vacíos
+    db.execute('UPDATE inquiries SET vehicle_id = NULL WHERE vehicle_id = ?', (vehicle_id,))
+    # Ahora sí podemos eliminar el vehículo
+    db.execute('DELETE FROM vehicles WHERE id = ?', (vehicle_id,))
+    db.commit()
+    db.close()
+    return jsonify({'status': 'ok'})
 
 
 if __name__ == '__main__':

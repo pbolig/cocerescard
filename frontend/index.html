@@ -26,10 +26,67 @@
       <div class="toolbar"><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Buscar marca, modelo o ubicación"></label><div class="filters"><button class="filter active" data-status="available">Disponibles</button><button class="filter" data-status="all">Todos</button></div></div>
       <div id="status" class="status" aria-live="polite">Cargando catálogo...</div><div id="vehicle-grid" class="vehicle-grid"></div>
     </section>
-    <section id="publish-panel" class="publish-panel" hidden><div class="section-head"><div><p class="eyebrow">Publicar vehículo</p><h2>Tu próximo<br><em>movimiento.</em></h2></div><p class="section-note">Completá los datos del vehículo y agregá una foto.<br>La publicación aparecerá junto a las referencias de mercado.</p></div><form id="vehicle-form" class="vehicle-form"><label>Título<input name="title" required maxlength="100" placeholder="Ej. Toyota Corolla SEG 2.0"></label><label>Marca<input name="brand" required maxlength="50"></label><label>Modelo<input name="model" required maxlength="80"></label><label>Año<input name="year" required type="number" min="1950" max="2100"></label><label>Precio en pesos<input name="price_ars" required type="number" min="1"></label><label>Kilometraje<input name="mileage_km" required type="number" min="0"></label><label>Ubicación<input name="location" required maxlength="100" placeholder="Rosario, Santa Fe"></label><label>Descripción<textarea name="description" maxlength="500"></textarea></label><label class="photo-field">Foto principal<input name="photo" required type="file" accept="image/jpeg,image/png,image/webp"></label><button class="button button-dark" type="submit">Publicar vehículo <span>↗</span></button><p id="form-status" class="status" aria-live="polite"></p></form></section>
+    <section id="publish-panel" class="publish-panel" hidden><div class="section-head"><div><p class="eyebrow">Publicar vehículo</p><h2>Tu próximo<br><em>movimiento.</em></h2></div><p class="section-note">Completá los datos del vehículo y agregá hasta 10 fotos.<br>Las imágenes se optimizarán automáticamente para no ralentizar la carga ni saturar el almacenamiento.</p></div><form id="vehicle-form" class="vehicle-form"><label>Título<input name="title" required maxlength="100" placeholder="Ej. Toyota Corolla SEG 2.0"></label><label>Marca<input name="brand" required maxlength="50"></label><label>Modelo<input name="model" required maxlength="80"></label><label>Año<input name="year" required type="number" min="1950" max="2100"></label><label>Precio en pesos<input name="price_ars" required type="number" min="1"></label><label>Kilometraje<input name="mileage_km" required type="number" min="0"></label><label>Ubicación<input name="location" required maxlength="100" placeholder="Rosario, Santa Fe"></label><label>Descripción<textarea name="description" maxlength="500"></textarea></label><label class="photo-field">Fotografías del vehículo (puedes elegir varias)<input name="photos" required type="file" accept="image/jpeg,image/png,image/webp" multiple></label><button class="button button-dark" type="submit">Publicar vehículo <span>↗</span></button><p id="form-status" class="status" aria-live="polite"></p></form></section>
+    
+    <section id="admin-panel" class="publish-panel" style="background:#eef2ee;" hidden>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Consola de Administración</p>
+          <h2>Gestión de<br><em>Usuarios y Roles.</em></h2>
+        </div>
+        <p class="section-note">Asigna los roles de Vendedor, Comprador o Administrador a los usuarios del sistema.</p>
+      </div>
+      <div style="overflow-x:auto; background:rgba(255,255,255,0.7); border:1px solid var(--line); padding:20px; border-radius:4px; margin-top:20px;">
+        <table style="width:100%; border-collapse:collapse; text-align:left; font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--line); color:var(--muted); font-weight:700; text-transform:uppercase; font-size:10px; letter-spacing:1px;">
+              <th style="padding:12px 10px;">Usuario (Email)</th>
+              <th style="padding:12px 10px;">Rol Actual</th>
+              <th style="padding:12px 10px; text-align:right;">Cambiar Rol</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-table">
+            <!-- Cargado por JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="inquiries-panel" class="publish-panel" style="background:#f2efe8;" hidden>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Mensajes del canal</p>
+          <h2>Consultas<br><em>Recibidas.</em></h2>
+        </div>
+        <p class="section-note">Preguntas y datos de interesados para cada vehículo consignado.</p>
+      </div>
+      <div id="inquiries-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:20px; margin-top:20px;">
+        <!-- Cargado por JS -->
+      </div>
+    </section>
+
     <section id="como-funciona" class="trust"><p class="eyebrow">La diferencia Coceres</p><div class="trust-grid"><h2>Comprar bien también<br>es saber <em>por qué.</em></h2><div class="trust-items"><article><span>01</span><h3>Precio con contexto</h3><p>Ves el valor publicado junto al promedio de mercado, sin números sueltos.</p></article><article><span>02</span><h3>Curaduría local</h3><p>Conocemos los caminos, los talleres y los detalles que importan en la zona.</p></article><article><span>03</span><h3>Trato directo</h3><p>Una conversación clara, desde la primera pregunta hasta la transferencia.</p></article></div></div></section>
   </main>
-  <div id="auth-modal" class="modal" hidden><div class="modal-box"><button id="auth-close" class="modal-close" type="button" aria-label="Cerrar">×</button><p class="eyebrow">Coceres Card</p><h2 id="auth-title">Ingresar</h2><form id="auth-form"><label>Correo electrónico<input id="auth-email" type="email" required autocomplete="email"></label><label id="auth-password-label">Contraseña<input id="auth-password" type="password" required minlength="6" autocomplete="current-password"></label><div class="auth-actions"><button class="button button-dark" type="submit">Continuar</button><button id="auth-switch" class="text-button" type="button">Crear cuenta</button></div><button id="forgot-password" class="text-button" type="button">¿Olvidaste tu contraseña?</button><p id="auth-status" class="status" aria-live="polite"></p></form></div></div>
+  <div id="auth-modal" class="modal" hidden><div class="modal-box"><button id="auth-close" class="modal-close" type="button" aria-label="Cerrar">×</button><p class="eyebrow">Coceres Card</p><h2 id="auth-title">Ingresar</h2><form id="auth-form"><label>Correo electrónico<input id="auth-email" type="email" required autocomplete="email"></label><label id="auth-password-label">Contraseña<input id="auth-password" type="password" required minlength="6" autocomplete="current-password"></label><div class="auth-actions"><button class="button button-dark" type="submit">Continuar</button></div><div class="auth-links"><button id="auth-switch" class="text-button" type="button">Crear cuenta</button><button id="forgot-password" class="text-button" type="button">¿Olvidaste tu contraseña?</button></div><p id="auth-status" class="status" aria-live="polite"></p></form></div></div>
+  
+  <div id="inquiry-modal" class="modal" hidden><div class="modal-box"><button id="inquiry-close" class="modal-close" type="button" aria-label="Cerrar">×</button><p class="eyebrow">Coceres Card</p><h2>Contactar Vendedor</h2><p id="inquiry-vehicle-title" style="font-weight:700; font-size:14px; margin-bottom:15px; color:var(--ink);"></p><form id="inquiry-form"><input id="inquiry-vehicle-id" type="hidden"><label>Escribe tu mensaje para el vendedor (se registrará con tu email)<textarea id="inquiry-message" required maxlength="500" style="width:100%; min-height:100px; padding:12px; border:1px solid var(--line); font:14px 'DM Sans'; outline:0; resize:vertical;" placeholder="Hola, estoy interesado en este vehículo. ¿Se puede pasar a ver?"></textarea></label><button class="button button-dark" type="submit" style="border:0; cursor:pointer; margin-top:5px; width:100%; justify-content:center;">Enviar consulta <span>↗</span></button><p id="inquiry-status" class="status" aria-live="polite"></p></form></div></div>
+
+  <div id="edit-vehicle-modal" class="modal" hidden><div class="modal-box" style="width:min(100%,480px);"><button id="edit-close" class="modal-close" type="button" aria-label="Cerrar">×</button><p class="eyebrow">Coceres Card</p><h2>Editar Vehículo</h2><form id="edit-vehicle-form" style="display:grid; gap:12px;"><input id="edit-vehicle-id" type="hidden"><label>Título<input id="edit-title" name="title" required maxlength="100"></label><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><label>Marca<input id="edit-brand" name="brand" required maxlength="50"></label><label>Modelo<input id="edit-model" name="model" required maxlength="80"></label></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><label>Año<input id="edit-year" name="year" required type="number" min="1950" max="2100"></label><label>Precio en pesos<input id="edit-price" name="price_ars" required type="number" min="1"></label></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><label>Kilometraje<input id="edit-mileage" name="mileage_km" required type="number" min="0"></label><label>Estado<select id="edit-status" name="status"><option value="available">Disponible</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></label></div><label>Ubicación<input id="edit-location" name="location" required maxlength="100"></label><label>Descripción<textarea id="edit-description" name="description" maxlength="500" style="min-height:60px; resize:vertical; width:100%; border:1px solid var(--line); padding:10px; font-family:'DM Sans';"></textarea></label>
+    
+    <!-- Sección de fotos existentes y agregar nuevas del auto -->
+    <div style="border-top:1px solid var(--line); padding-top:12px; margin-top:5px;">
+      <p style="font-weight:700; font-size:11px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fotos del Vehículo</p>
+      <div id="edit-photos-container" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+        <!-- Se inyectan dinámicamente con JS -->
+      </div>
+      <label class="photo-field" style="display:grid; gap:4px; font-weight:700; font-size:11px;">
+        Agregar nuevas fotografías (opcional)
+        <input id="edit-photos-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple style="font-size:12px; padding:6px; border:1px dashed var(--line); width:100%;">
+      </label>
+    </div>
+
+    <button class="button button-dark" type="submit" style="border:0; cursor:pointer; margin-top:5px; width:100%; justify-content:center; padding:12px;">Guardar cambios <span>↗</span></button><p id="edit-form-status" class="status" aria-live="polite"></p></form></div></div>
+
   <footer><span>© 2026 Coceres Card.</span><span>Hecho para moverse mejor.</span></footer>
   <script src="config.js?v=20260828"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js?v=20260827-5"></script>
 </body>
